@@ -1,0 +1,10 @@
+*.log
+*.tmp
+*.bak
+*.swp
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+node_modules/
+venv/
