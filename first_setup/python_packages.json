@@ -1,0 +1,7 @@
+{
+    "google-api-python-client": "Python client library for Google APIs.",
+    "huggingface-hub": "Client library to interact with the Hugging Face Hub.",
+    "openai": "Python client library for OpenAI's API.",
+    "pywebostv": "Library to interact with LG webOS TVs.",
+    "wakeonlan": "Library to wake devices through LAN"
+}
