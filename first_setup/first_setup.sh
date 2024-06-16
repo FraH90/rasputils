@@ -13,11 +13,15 @@ curl -sSL https://install.pi-hole.net | bash
 sudo apt install code
 
 # UI improovements
-sudo apt install cairo-dock
+sudo apt install cairo-dock-core
+sudo apt install cairo-dock-plug-ins
 
 # Multimedia
 sudo apt-get install mplayer
 
+# Utilities
+# Pi-Apps
+wget -qO- https://raw.githubusercontent.com/Botspot/pi-apps/master/install | bash
 
 ############################################################
 ######### Software not installed for the moment ############
