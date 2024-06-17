@@ -33,7 +33,24 @@
             "Week": "All",
             "DayOfWeek": "All",
             "Time": "19.00"
-        }
+        },
+
+        "Iron Man Workshop Radio": {
+            "URL": "https://www.youtube.com/watch?v=W2ff_TIgZGg",
+            "Month": "All",
+            "Week": "All",
+            "DayOfWeek": "All",
+            "Time": "11.00"
+        },
+        "EventBrite - Bari": {
+            "URL": "https://www.eventbrite.it/d/italy--bari/events/",
+            "Month": "All",
+            "Week": "All",
+            "DayOfWeek": "All",
+            "Time": "11.00"
+        },
+
+
 
 
 

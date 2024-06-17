@@ -8,7 +8,7 @@ def setup():
     schedule = {
         "enabled": True,  # Set to True for scheduled execution
         "days_of_week": ["Monday", "Wednesday", "Friday"],  # Days to run the task
-        "time_of_day": "11:32"  # Time to run the task (24-hour format)
+        "time_of_day": "13:37"  # Time to run the task (24-hour format)
     }
 
     return timeout, schedule
