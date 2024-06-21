@@ -45,12 +45,12 @@ system = SystemControl(client)
 system.screen_on()
 
 
-""" media = MediaControl(client)
+media = MediaControl(client)
 media.set_volume(5)    # The argument is an integer from 1 to 100. Doesn't return anything.
 time.sleep(10)
 media.mute(status)         # status=True mutes the TV. status=Fale unmutes it.
-time.sleep(10)
- """
+time.sleep(18)
+
 
 """ media.play()
 media.pause()
