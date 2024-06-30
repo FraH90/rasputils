@@ -1,0 +1,1 @@
+The entry point is the file "first_setup.sh", it will execute all the other scripts

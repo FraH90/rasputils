@@ -42,8 +42,6 @@ with open(FILE_STORE_NAME, "w") as file:
 
 
 system = SystemControl(client)
-system.screen_on()
-
 
 media = MediaControl(client)
 media.set_volume(5)    # The argument is an integer from 1 to 100. Doesn't return anything.

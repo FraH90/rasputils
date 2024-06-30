@@ -3,6 +3,9 @@
 # Installing python libraries
 python python_packages.py
 
+# Installing retroarch
+sudo python retroarch_setup.python
+
 # Networking tools
 # SAMBA: info on https://pimylifeup.com/raspberry-pi-samba/
 # Pi-Hole. Info on https://pi-hole.net/
@@ -12,9 +15,9 @@ curl -sSL https://install.pi-hole.net | bash
 # Developer tools
 sudo apt install code
 
-# UI improovements
-sudo apt install cairo-dock-core
-sudo apt install cairo-dock-plug-ins
+# UI improovements. Doesnt work because of wayland incompatibility
+# sudo apt install cairo-dock-core
+# sudo apt install cairo-dock-plug-ins
 
 # Multimedia
 sudo apt-get install mplayer
