@@ -42,17 +42,28 @@ def configure_retroarch():
     if not os.path.exists(os.path.dirname(config_file)):
         os.makedirs(os.path.dirname(config_file))
     
+    # Edit RetroArch configuration file
     with open(config_file, "w") as f:
         f.write("video_fullscreen = true\n")
         f.write("video_scale_integer = true\n")
         f.write("audio_driver = \"alsathread\"\n")
         f.write("input_driver = \"udev\"\n")
+        f.write('core_updater_buildbot_url = "http://buildbot.libretro.com/nightly/linux/armhf/latest/"\n')
+
+    # Print additional setup instructions
+    print("\nSetup instructions:")
+    print("Online Updater -> Update Autoconfig Profiles -> Wait for the OSD text to stop flashing -> Quit and restart RetroArch")
+    print("")
+    print("If controller is still not found, go to Settings->Input->Input User 1 Binds")
+    print("")
+    print("Online Updater->Core Updater->2048")
+    print("Then from the main menu select Load Core->2048->Start Core")
 
 def main():
     install_retroarch()
     install_cores()
     configure_retroarch()
-    print("RetroArch installation and setup complete!")
+    print("\nRetroArch installation and setup complete!")
 
 if __name__ == "__main__":
     main()
