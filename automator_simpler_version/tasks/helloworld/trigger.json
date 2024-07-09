@@ -1,8 +1,13 @@
 {
-    "timeout": 5,
     "schedule": {
-        "enabled": false,
+        "enabled": true,
+        "type": "daily",  // Can be "daily", "weekly", "interval"
         "days_of_week": ["Monday", "Wednesday", "Friday"],
-        "time_of_day": "17:32"
+        "time_of_day": "18:51",
+        "interval": 5  // Interval in seconds (only for interval-based tasks)
+    },
+    "config": {
+        "param1": "value1",
+        "param2": "value2"
     }
 }
