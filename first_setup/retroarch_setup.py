@@ -16,7 +16,7 @@ def install_retroarch():
     print("Installing RetroArch...")
     run_command("sudo apt-get install -y retroarch")
 
-def install_cores():
+def install_selected_cores():
     cores = [
         "libretro-snes9x",
         "libretro-nestopia",
@@ -34,6 +34,10 @@ def install_cores():
     for core in cores:
         print(f"Installing {core}...")
         run_command(f"sudo apt-get install -y {core}")
+
+def install_all_libretro_cores():
+    print("Installing all libretro cores...")
+    run_command("sudo apt-get install -y libretro-*")
 
 def configure_retroarch():
     config_file = os.path.expanduser("~/.config/retroarch/retroarch.cfg")
@@ -61,7 +65,7 @@ def configure_retroarch():
 
 def main():
     install_retroarch()
-    install_cores()
+    install_all_libretro_cores()
     configure_retroarch()
     print("\nRetroArch installation and setup complete!")
 
