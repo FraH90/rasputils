@@ -1,2 +1,0 @@
-python automator.py
-pause
