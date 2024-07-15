@@ -1,8 +1,8 @@
 {
-    "schedule_on": false,
-    "timeout_on": false,
+    "schedule_on": true,
+    "timeout_on": true,
     "days_of_week": ["Monday", "Wednesday", "Friday"],
-    "time_of_day": "13:54",
+    "time_of_day": "14:41",
     "timeout_interval": 1,
     "description": "Configuration for task execution",
     "behavior_explanation": {
