@@ -4,7 +4,7 @@ import random
 import time
 import vlc
 import os
-import subprocess
+import pexpect
 
 CURRENT_TASK_DIR = os.path.dirname(__file__)
 
@@ -15,38 +15,66 @@ class BluetoothHandler:
     def __init__(self, mac_address):
         self.mac_address = mac_address
 
-    def run_command(self, command):
-        process = subprocess.run(command, shell=True, capture_output=True, text=True)
-        return process.stdout
+    def run_command(self, command, timeout=10):
+        process = pexpect.spawn(command, timeout=timeout)
+        process.expect(pexpect.EOF)
+        return process.before.decode()
+
+    def is_paired(self):
+        print(f"Checking if {self.mac_address} is paired...")
+        bluetoothctl = pexpect.spawn('sudo bluetoothctl')
+        bluetoothctl.sendline(f'info {self.mac_address}')
+        try:
+            bluetoothctl.expect(['Paired: yes', 'Device has not been found'], timeout=10)
+            result = bluetoothctl.after.decode()
+            bluetoothctl.sendline('exit')
+            return 'Paired: yes' in result
+        except pexpect.TIMEOUT:
+            bluetoothctl.sendline('exit')
+            return False
+
+    def is_connected(self):
+        print(f"Checking if {self.mac_address} is connected...")
+        bluetoothctl = pexpect.spawn('sudo bluetoothctl')
+        bluetoothctl.sendline(f'info {self.mac_address}')
+        try:
+            bluetoothctl.expect(['Connected: yes', 'Device has not been found'], timeout=10)
+            result = bluetoothctl.after.decode()
+            bluetoothctl.sendline('exit')
+            return 'Connected: yes' in result
+        except pexpect.TIMEOUT:
+            bluetoothctl.sendline('exit')
+            return False
 
     def connect(self):
-        print(f"Connecting to Bluetooth speaker with MAC address: {self.mac_address}")
-        
-        # Turn on the Bluetooth device
-        print("Turning on Bluetooth...")
-        self.run_command("sudo hciconfig hci0 up")
-        
-        # Pair with the Bluetooth speaker
-        print(f"Pairing with {self.mac_address}...")
-        self.run_command(f"echo -e 'pair {self.mac_address}\\n' | sudo bluetoothctl")
-        
-        # Trust the Bluetooth speaker
-        print(f"Trusting {self.mac_address}...")
-        self.run_command(f"echo -e 'trust {self.mac_address}\\n' | sudo bluetoothctl")
-        
-        # Connect to the Bluetooth speaker
-        print(f"Connecting to {self.mac_address}...")
-        self.run_command(f"echo -e 'connect {self.mac_address}\\n' | sudo bluetoothctl")
-        
-        # Check if connected
-        print("Checking connection status...")
-        connection_status = self.run_command(f"echo -e 'info {self.mac_address}\\n' | sudo bluetoothctl")
-        
-        if "Connected: yes" in connection_status:
-            print("Successfully connected to the Bluetooth speaker.")
+        if not self.is_paired():
+            print(f"Pairing with {self.mac_address}...")
+            bluetoothctl = pexpect.spawn('sudo bluetoothctl')
+            bluetoothctl.sendline(f'pair {self.mac_address}')
+            bluetoothctl.expect('Pairing successful', timeout=10)
+            bluetoothctl.sendline(f'trust {self.mac_address}')
+            bluetoothctl.expect('trust succeeded', timeout=10)
+            bluetoothctl.sendline('exit')
+        else:
+            print(f"{self.mac_address} is already paired.")
+
+        if not self.is_connected():
+            print(f"Connecting to {self.mac_address}...")
+            bluetoothctl = pexpect.spawn('sudo bluetoothctl')
+            bluetoothctl.sendline(f'connect {self.mac_address}')
+            try:
+                bluetoothctl.expect('Connection successful', timeout=10)
+                print("Successfully connected to the Bluetooth speaker.")
+            except pexpect.TIMEOUT:
+                print("Failed to connect to the Bluetooth speaker.")
+            bluetoothctl.sendline('exit')
+
+        # Double-check connection status
+        if self.is_connected():
+            print("Verified: Successfully connected to the Bluetooth speaker.")
             return True
         else:
-            print("Failed to connect to the Bluetooth speaker.")
+            print("Failed to verify connection to the Bluetooth speaker.")
             return False
 
 class RadioPlayer:
@@ -63,8 +91,13 @@ class RadioPlayer:
             return json.load(f)
 
     def play_radio_for_one_hour(self, stream_url, radio_name):
-        player = vlc.MediaPlayer(stream_url)
+        # Increase VLC buffer and set audio output to ALSA
+        instance = vlc.Instance('--network-caching=3000', '--file-caching=3000', '--live-caching=3000', '--aout=alsa')
+        player = instance.media_player_new()
+        media = instance.media_new(stream_url)
+        player.set_media(media)
         player.play()
+        
         print(f"{time.strftime('%H:%M')} - Playing radio {radio_name}")
         # Play for 1 hour (3600 seconds)
         time.sleep(3600)
