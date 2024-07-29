@@ -4,13 +4,16 @@
 python python_packages.py
 
 # Installing retroarch
-sudo python retroarch_setup.python
+# sudo python retroarch_setup.python
+# Do this via PiKiss, more straightfoward and no errors
 
 # Networking tools
 # SAMBA: info on https://pimylifeup.com/raspberry-pi-samba/
 # Pi-Hole. Info on https://pi-hole.net/
 sudo apt install samba samba-common-bin
 curl -sSL https://install.pi-hole.net | bash
+# PiKiss
+curl -sSL https://git.io/JfAPE | bash
 
 # Developer tools
 sudo apt install code
