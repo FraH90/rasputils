@@ -1,10 +1,9 @@
 #!/bin/bash
 
 # Installing python libraries
-python python_packages.py
+python ./submodules/python_packages.py
 
-# Installing retroarch
-# sudo python retroarch_setup.python
+# Installing retroarch:
 # Do this via PiKiss, more straightfoward and no errors
 
 # Networking tools
