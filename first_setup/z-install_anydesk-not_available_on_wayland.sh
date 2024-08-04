@@ -52,6 +52,33 @@ install_anydesk() {
     fi
 }
 
+# Function to create a systemd service for AnyDesk
+create_anydesk_service() {
+    echo "Creating systemd service for AnyDesk..."
+    sudo bash -c 'cat > /etc/systemd/system/anydesk.service <<EOF
+[Unit]
+Description=AnyDesk Remote Desktop Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/anydesk
+Restart=on-failure
+User=pi
+Environment=DISPLAY=:0
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+}
+
+# Function to enable and start the AnyDesk service
+enable_anydesk_service() {
+    echo "Enabling and starting AnyDesk service..."
+    sudo systemctl enable anydesk.service
+    sudo systemctl start anydesk.service
+}
+
 # Function to clean up
 cleanup() {
     echo "Cleaning up..."
@@ -62,6 +89,8 @@ cleanup() {
 download_anydesk
 install_dependencies
 install_anydesk
+create_anydesk_service
+enable_anydesk_service
 cleanup
 
-echo "AnyDesk installation completed successfully."
+echo "AnyDesk installation and setup completed successfully."
