@@ -1,8 +1,0 @@
-{
-    "timeout": 5,
-    "schedule": {
-        "enabled": false,
-        "days_of_week": ["Monday", "Wednesday", "Friday"],
-        "time_of_day": "17:32"
-    }
-}
