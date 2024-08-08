@@ -1,0 +1,19 @@
+{
+    "internal_bluetooth_disable": {
+        "config_lines": [
+            "dtoverlay=disable-bt"
+        ],
+        "commands": [
+            "sudo systemctl stop bluetooth",
+            "sudo systemctl disable bluetooth"
+        ]
+    },
+    "hdmi_stutter_fix": {
+        "config_lines": [
+            "hdmi_safe=1",
+            "hdmi_force_hotplug=1",
+            "hdmi_ignore_edid=0xa5000080"
+        ],
+        "commands": []
+    }
+}
