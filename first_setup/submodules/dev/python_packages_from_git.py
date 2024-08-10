@@ -3,7 +3,7 @@ import subprocess
 import shutil
 import json
 
-JSON_CONFIG_FILENAME = 'python_packages_from_git.py'
+JSON_CONFIG_FILENAME = 'python_packages_from_git.json'
 
 def run_command(command, sudo=False):
     """Run a command with optional sudo."""
