@@ -12,14 +12,6 @@ def run_command(command, sudo=False):
     result = subprocess.run(command, shell=True, check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return result.stdout
 
-def confirm(prompt):
-    """Prompt the user for confirmation."""
-    while True:
-        response = input(f"{prompt} (y/n): ").strip().lower()
-        if response in ('y', 'n'):
-            return response == 'y'
-        print("Please respond with 'y' or 'n'.")
-
 def install_module(repo_url, subfolder, destination):
     """Clone a repo, copy a subfolder, and clean up."""
 
@@ -36,14 +28,18 @@ def install_module(repo_url, subfolder, destination):
     # Construct the full destination path. OSS: the "destination" parameter  in json is relative to "/usr/lib/python3/dist-packages"
     destination_path = os.path.join("/usr/lib/python3/dist-packages", destination)
 
-    # Check if the destination directory exists
-    if os.path.exists(destination_path):
-        response = input(f"Directory {destination_path} already exists. Do you want to remove it and install only the new content? (y/n): ").strip().lower()
-        if response == 'y':
-            print(f"Removing {destination_path}...")
-            run_command(f"rm -rf {destination_path}", sudo=True)
-        else:
-            print(f"{destination_path} is already present and you chose not to overwrite its content.")
+    # Prompt the user about the operations we're going to take
+    response = input(f"The folder {subfolder} from the repo {repo_url} will be copied into {destination}. Do you want to proceed? (y/n): ").strip().lower()
+    if response == 'n':
+        os.chdir("..")
+        shutil.rmtree(repo_dir)
+        return
+
+    # Check if the module already exitsts in the destination directory; in this case, prompt the user if wants to proceed overwriting
+    module_folder_in_dist_packages = os.path.join(destination_path, subfolder)
+    if os.path.exists(module_folder_in_dist_packages):
+        response = input(f"Directory {module_folder_in_dist_packages} already exists. Do you want to overwrite its content? (y/n): ").strip().lower()
+        if response == 'n':
             os.chdir("..")
             shutil.rmtree(repo_dir)
             return
@@ -53,7 +49,6 @@ def install_module(repo_url, subfolder, destination):
     source_path = os.path.abspath(subfolder)
     copy_command = f"cp -r {source_path} {destination_path}"
     run_command(copy_command, sudo=True)
-
 
     # Go back to the previous directory
     os.chdir("..")
