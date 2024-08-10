@@ -3,6 +3,8 @@ import subprocess
 import shutil
 import json
 
+JSON_CONFIG_FILENAME = 'python_packages_from_git.py'
+
 def run_command(command, sudo=False):
     """Run a command with optional sudo."""
     if sudo:
@@ -64,7 +66,7 @@ def install_module(repo_url, subfolder, destination):
 
 def main():
     # Load configuration from JSON file
-    with open('config.json', 'r') as f:
+    with open(JSON_CONFIG_FILENAME, 'r') as f:
         config_entries = json.load(f)
 
     for entry in config_entries:
