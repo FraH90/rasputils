@@ -1,0 +1,7 @@
+[
+    {
+        "git_repo": "https://github.com/Rybec/pyRTOS.git",
+        "subfolder": "pyRTOS",
+        "destination": ""
+    }
+]

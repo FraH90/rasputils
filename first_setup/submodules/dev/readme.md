@@ -1,0 +1,6 @@
+## Python packages from git
+This script let us install a subfolder from a git repository (hosted on github, gitlab, etc) as a python module inside the /usr/lib/python3/dist-packages, which is the default directory in which python packages are installed in Raspberry Pi OS.
+This folder is managed in a system wide way (it means you can't install script normally by using pip on the raspberry; instead you need to use apt install python3-packagexyz, where packagexyz is the name of the package you want to install).
+With the script the aim is to let user install packages that aren't published on the apt repositories, but are instead published as git repository (like PyRTOS...).
+By the way, it's not the entire git repository that it's copied in the destination folder, but only a subfolder of it (since usually git repositories of python modules also contain other stuff beside the module in which we're interested into).
+The destination folder is a subfolder of /usr/lib/python3/dist-packages; you can copy directly the subfolder of your choice from the repository in/usr/lib/python3/dist-packages (without any subfolder) by leaving the "destination" field in the json file empty.
