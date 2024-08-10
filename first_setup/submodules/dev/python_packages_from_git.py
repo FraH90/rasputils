@@ -74,7 +74,7 @@ def main():
         subfolder = entry.get("subfolder")
         destination = entry.get("destination")
         
-        if not git_repo or not subfolder or not destination:
+        if not git_repo or not subfolder:
             print("Skipping entry due to missing required fields.")
             continue
 
