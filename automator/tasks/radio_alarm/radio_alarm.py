@@ -118,9 +118,15 @@ class RadioPlayer:
         else:
             print("Failed to connect to Bluetooth speaker. Exiting.")
 
+# Entry point of the program
 def main():
     radio_player = RadioPlayer()
     radio_player.start()
 
+# This is if we want to run the script as a task
+def thread_loop():
+    main()
+
+# This is if we want to run the script as a standalone program
 if __name__ == "__main__":
     main()
