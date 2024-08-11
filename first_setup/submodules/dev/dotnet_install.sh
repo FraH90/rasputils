@@ -6,7 +6,7 @@ sed -i '/export DOTNET_ROOT/d' $HOME/.bashrc
 sed -i '/export PATH=.*dotnet/d' $HOME/.bashrc
 
 # Dotnet install (istructions from MS website https://learn.microsoft.com/en-us/dotnet/iot/deployment and https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-install-script)
-curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel Current
+curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --version latest
 
 # Add dotnet to environment variables
 echo 'export DOTNET_ROOT=$HOME/.dotnet' >> $HOME/.bashrc
