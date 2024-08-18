@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "Python (win, anaconda): Current File",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
@@ -10,7 +10,22 @@
             "env": {
                 "PYTHONPATH": "${workspaceRoot}"
             },
-            "pythonPath": "C:\\Users\\Caterina\\Anaconda3\\python.exe"
+            "python": "C:\\Users\\Caterina\\Anaconda3\\python.exe"
+        },
+        {
+            "name": "Python (linux): Remote Attach",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "127.0.0.1",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}",
+                    "remoteRoot": "/path/to/your/project/on/server"
+                }
+            ]
         }
     ]
 }

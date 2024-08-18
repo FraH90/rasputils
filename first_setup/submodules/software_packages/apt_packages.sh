@@ -7,6 +7,8 @@ sudo apt install mplayer
 sudo apt install code
 sudo apt -y install zsh
 sudo apt -y install neovim
+sudo apt -y install stacer
+sudo apt -y install cockpit
 
 # Networking tools
 # SAMBA: info on https://pimylifeup.com/raspberry-pi-samba/
