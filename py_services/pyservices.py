@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 
-def create_service_file(service_name, script_path, working_directory, user):
+def create_service_file(service_name, script_path, working_directory, user, stdout_path, stderr_path):
     service_content = f"""[Unit]
 Description={service_name}
 After=multi-user.target
@@ -11,8 +11,8 @@ After=multi-user.target
 [Service]
 ExecStart=/usr/bin/python3 {script_path}
 WorkingDirectory={working_directory}
-StandardOutput=inherit
-StandardError=inherit
+StandardOutput=file:{stdout_path}
+StandardError=file:{stderr_path}
 Restart=always
 User={user}
 
@@ -64,8 +64,10 @@ def main():
         script_path = service['script_path']
         working_directory = service['working_directory']
         user = service['user']
+        stdout_path = service.get('standard_output', '/dev/null')
+        stderr_path = service.get('standard_error', '/dev/null')
         
-        create_service_file(service_name, script_path, working_directory, user)
+        create_service_file(service_name, script_path, working_directory, user, stdout_path, stderr_path)
 
 if __name__ == "__main__":
     main()

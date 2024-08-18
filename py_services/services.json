@@ -1,10 +1,12 @@
 {
     "services": [
-      {
-        "service_name": "automator",
-        "script_path": "/home/frah/Documents/myservices/automator/src/main.py",
-        "working_directory": "/home/frah/Documents/myservices/automator",
-        "user": "frah"
-      }
+        {
+            "service_name": "automator",
+            "script_path": "/home/frah/Documents/myservices/automator/src/main.py",
+            "working_directory": "/home/frah/Documents/myservices/automator",
+            "user": "frah",
+            "standard_output": "/home/frah/Documents/myservices/automator/logs/automator.out",
+            "standard_error": "/home/frah/Documents/myservices/automator/logs/automator.err"
+        }
     ]
 }
