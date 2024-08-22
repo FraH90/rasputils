@@ -3,7 +3,11 @@ import sys
 
 def add_to_bashrc(shell_script_path, output_path):
     bashrc_path = os.path.expanduser("~/.bashrc")
-    entry = f"\n# Run shell script at startup\n(nohup {shell_script_path} > {output_path} 2>&1 &)\n"
+    script_dir = os.path.dirname(shell_script_path)
+    entry = f"""
+# Run shell script at startup
+cd {script_dir} && (nohup {shell_script_path} > {output_path} 2>&1 &)
+"""
     
     with open(bashrc_path, "a") as bashrc:
         bashrc.write(entry)
