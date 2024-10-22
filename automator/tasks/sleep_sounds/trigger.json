@@ -1,9 +1,9 @@
 {
     "schedule_on": true,
-    "timeout_on": true,
-    "days_of_week": ["Monday", "Wednesday", "Friday"],
-    "time_of_day": "08:00",
-    "timeout_interval": 1,
+    "timeout_on": false,
+    "days_of_week": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+    "time_of_day": "23:30",
+    "timeout_interval": 3600,
     "description": "Configuration for task execution",
     "behavior_explanation": {
       "schedule_on": "If true, the task will run only at specified times. If false, it will run continuously.",
