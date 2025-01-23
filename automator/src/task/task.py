@@ -3,14 +3,25 @@ import importlib.util
 import pyRTOS
 from datetime import datetime, timedelta
 import json
+from .bluetooth_handler import BluetoothHandler  # Import it in Task class
+import logging
 
 class Task:
-    def __init__(self, task_file):
+    def __init__(self, task_file, debug=False):
         # Initialize the task by setting the task name and importing the task module
         self.task_name = os.path.dirname(task_file)
         self.task_module = self.import_task_module(task_file)
         self.root_dir = os.path.dirname(os.path.dirname(task_file))
         self.config = self.load_trigger_config()
+        self.debug = debug  # Store debug mode
+        
+        # Initialize BluetoothHandler as a class property
+        self.bluetooth = None
+
+    def setup_bluetooth(self, mac_address):
+        """Initialize bluetooth handler with given MAC address"""
+        self.bluetooth = BluetoothHandler(mac_address)
+        return self.bluetooth
 
     def import_task_module(self, module_path):
         # Dynamically import the task module from the given path
@@ -41,7 +52,32 @@ class Task:
             next_run += timedelta(days=1)
         return next_run
 
+    def should_run(self):
+        # If in debug mode, always run
+        if self.debug:
+            return True
+            
+        # Normal schedule checking logic
+        if not self.config.get('schedule_on', False):
+            return True
+
+        current_time = datetime.now()
+        current_day = current_time.strftime('%A')
+        current_hour = current_time.strftime('%H:%M')
+
+        scheduled_days = self.config.get('days_of_week', [])
+        scheduled_time = self.config.get('time_of_day', '')
+
+        return current_day in scheduled_days and current_hour == scheduled_time
+
     def run(self, self_task):
+        # If in debug mode, run immediately and continuously
+        if self.debug:
+            while True:
+                self.task_module.thread_loop()
+                yield [pyRTOS.timeout(1)]  # Small delay to prevent CPU hogging
+            
+        # Normal scheduling logic for non-debug mode
         next_run = self.calculate_next_run()
         yield
 

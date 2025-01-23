@@ -34,3 +34,24 @@ class Orchestrator:
         pyRTOS.add_service_routine(lambda: time.sleep(0.1))
         # Start pyRTOS
         pyRTOS.start()
+
+    def run_task_debug(self, task_name):
+        """Run a specific task in debug mode"""
+        # Find the task file
+        task_file = None
+        for root, dirs, files in os.walk(self.tasks_root_folder):
+            for dir_name in dirs:
+                if dir_name == task_name:
+                    task_file = os.path.join(root, dir_name, f"{dir_name}.py")
+                    break
+            if task_file:
+                break
+
+        if not task_file:
+            raise ValueError(f"Task {task_name} not found")
+
+        # Create and run the task in debug mode
+        task_instance = Task(task_file, debug=True)
+        pyRTOS.add_task(pyRTOS.Task(task_instance.run, name=task_instance.task_name))
+        pyRTOS.add_service_routine(lambda: time.sleep(0.1))
+        pyRTOS.start()

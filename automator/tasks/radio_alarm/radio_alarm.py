@@ -5,7 +5,9 @@ import time
 import vlc
 import os
 import threading
-from bluetooth_handler import BluetoothHandler
+import psutil
+from task.bluetooth_handler import BluetoothHandler
+import logging
 
 CURRENT_TASK_DIR = os.path.dirname(__file__)
 
@@ -27,18 +29,18 @@ class RadioPlayer:
     
     def __init__(self):
         if not hasattr(self, 'initialized'):
-            self.config = self.load_config()
-            self.radio_streams = self.load_radio_streams()
+            self.load_config()
+            self.load_radio_streams()
             self.is_playing = False  # Add a flag to check if the radio is playing
             self.initialized = True
     
     def load_config(self):
         with open(CONFIG_FILE, 'r') as f:
-            return json.load(f)
+            self.config = json.load(f)
 
     def load_radio_streams(self):
         with open(RADIO_STREAM_FILE, 'r') as f:
-            return json.load(f)
+            self.radio_streams = json.load(f)
 
     def play_radio_for_one_hour(self, stream_url, radio_name):
         if self.is_playing:
@@ -68,23 +70,55 @@ class RadioPlayer:
         radio_stream_url = radio_stream['url']
         radio_name = radio_stream['name']
 
-        # Connect to the Bluetooth speaker
-        bluetooth_mac_address = self.config['bluetooth_mac_address']
-        bluetooth_handler = BluetoothHandler(bluetooth_mac_address)
+        # Connect to the Bluetooth speaker using the list of devices
+        bluetooth_devices = self.config['bluetooth_devices']
+        bluetooth_handler = BluetoothHandler(bluetooth_devices)
+        
+        # Try to connect (this will automatically use already connected devices if available)
         if bluetooth_handler.connect():
+            connected_device = bluetooth_handler.get_current_device()
+            print(f"Using Bluetooth device: {connected_device['name']}")
             self.play_radio_for_one_hour(radio_stream_url, radio_name)
         else:
-            print("Failed to connect to Bluetooth speaker. Exiting.")
+            print("Failed to connect to any Bluetooth speaker. Exiting.")
 
 
 def check_if_already_running():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     pid_file = os.path.join(script_dir, 'radio_alarm.pid')
+    
     if os.path.isfile(pid_file):
-        print("Another instance is already running.")
-        sys.exit()
-    with open(pid_file, 'w') as f:
-        f.write(str(os.getpid()))
+        try:
+            with open(pid_file, 'r') as f:
+                old_pid = int(f.read().strip())
+            
+            # Check if process with this PID exists
+            if psutil.pid_exists(old_pid):
+                # Double check it's our process by checking the name
+                try:
+                    process = psutil.Process(old_pid)
+                    if "python" in process.name().lower():
+                        print(f"Another instance is already running (PID: {old_pid})")
+                        sys.exit()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    # Process doesn't exist anymore or we can't access it
+                    pass
+            
+            # If we get here, the PID file is stale
+            os.remove(pid_file)
+            
+        except (ValueError, IOError) as e:
+            # Invalid content in PID file or can't read it
+            logging.warning(f"Invalid or corrupted PID file: {e}")
+            os.remove(pid_file)
+    
+    # Write our PID
+    try:
+        with open(pid_file, 'w') as f:
+            f.write(str(os.getpid()))
+    except IOError as e:
+        logging.error(f"Could not write PID file: {e}")
+        sys.exit(1)
 
 def delete_pid_file():
     script_dir = os.path.dirname(os.path.abspath(__file__))

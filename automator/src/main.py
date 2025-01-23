@@ -1,4 +1,4 @@
-from orchestrator import Orchestrator
+from orchestrator.orchestrator import Orchestrator
 import os
 
 # The current working directory is the one from where the python command is executed (and thus the one where the bat file resides)
