@@ -63,6 +63,9 @@ class RadioPlayer:
             player.stop()
             print(f"{time.strftime('%H:%M')} - Stopped playing radio {radio_name}")
         finally:
+            player.stop()
+            player.release()
+            instance.release()
             self.is_playing = False  # Reset the flag when done playing
 
     def start(self):
