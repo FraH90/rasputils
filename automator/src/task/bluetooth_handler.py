@@ -27,6 +27,23 @@ class LinuxBluetoothHandler(BluetoothInterface):
         self.max_retries = 3
         self.retry_delay = 2  # seconds
 
+    def is_paired(self, device_mac):
+        print(f"Checking if {device_mac} is paired...")
+        try:
+            bluetoothctl = self.pexpect.spawn('sudo bluetoothctl')
+            bluetoothctl.sendline(f'info {device_mac}')
+            try:
+                bluetoothctl.expect(['Paired: yes', 'Device has not been found'], timeout=10)
+                result = bluetoothctl.after.decode()
+                bluetoothctl.sendline('exit')
+                return 'Paired: yes' in result
+            except self.pexpect.TIMEOUT:
+                bluetoothctl.sendline('exit')
+                return False
+        except Exception as e:
+            logging.error(f"Error checking pairing status: {str(e)}")
+            return False
+    
     def _get_connected_devices(self):
         """Get list of devices currently connected to the speaker"""
         try:
@@ -109,24 +126,27 @@ class LinuxBluetoothHandler(BluetoothInterface):
     def _try_connect(self):
         """Single connection attempt"""
         try:
-            bluetoothctl = self.pexpect.spawn('bluetoothctl')
+            device_mac = self.devices[0]
+            bluetoothctl = self.pexpect.spawn('sudo bluetoothctl')
             
-            # Remove and re-add device
-            bluetoothctl.sendline(f'remove {self.devices[0]}')
-            time.sleep(1)
-            bluetoothctl.sendline('scan on')
-            time.sleep(2)  # Give it time to discover
-            bluetoothctl.sendline('scan off')
+            # First check if already connected
+            if self.is_connected():
+                logging.info("Device already connected")
+                return True
+                
+            # Check if paired
+            if not self.is_paired(device_mac):
+                logging.info(f"Device {device_mac} not paired, attempting to pair...")
+                bluetoothctl.sendline(f'pair {device_mac}')
+                bluetoothctl.expect(['Pairing successful', 'Failed to pair'], timeout=30)
+                
+                bluetoothctl.sendline(f'trust {device_mac}')
+                bluetoothctl.expect(['trust succeeded', 'Failed to trust'], timeout=10)
             
-            # Pair and connect
-            bluetoothctl.sendline(f'pair {self.devices[0]}')
-            bluetoothctl.expect(['successful', 'Failed'], timeout=10)
-            
-            bluetoothctl.sendline(f'trust {self.devices[0]}')
-            bluetoothctl.expect(['successful', 'Failed'], timeout=5)
-            
-            bluetoothctl.sendline(f'connect {self.devices[0]}')
-            index = bluetoothctl.expect(['Connection successful', 'Failed to connect'], timeout=10)
+            # Try to connect
+            logging.info(f"Attempting to connect to {device_mac}")
+            bluetoothctl.sendline(f'connect {device_mac}')
+            index = bluetoothctl.expect(['Connection successful', 'Failed to connect'], timeout=30)
             
             bluetoothctl.sendline('quit')
             return index == 0
@@ -137,14 +157,19 @@ class LinuxBluetoothHandler(BluetoothInterface):
 
     def is_connected(self):
         try:
-            bluetoothctl = self.pexpect.spawn('bluetoothctl')
-            bluetoothctl.sendline(f'info {self.devices[0]}')
-            bluetoothctl.expect(['Connected: yes', 'Connected: no', 'Device not found'], timeout=5)
-            result = 'Connected: yes' in bluetoothctl.after.decode()
-            bluetoothctl.sendline('quit')
-            return result
+            device_mac = self.devices[0]
+            bluetoothctl = self.pexpect.spawn('sudo bluetoothctl')
+            bluetoothctl.sendline(f'info {device_mac}')
+            try:
+                bluetoothctl.expect(['Connected: yes', 'Device has not been found'], timeout=10)
+                result = bluetoothctl.after.decode()
+                bluetoothctl.sendline('exit')
+                return 'Connected: yes' in result
+            except self.pexpect.TIMEOUT:
+                bluetoothctl.sendline('exit')
+                return False
         except Exception as e:
-            logging.error(f"Linux Bluetooth status check error: {str(e)}")
+            logging.error(f"Error checking connection status: {str(e)}")
             return False
 
     def disconnect(self):
