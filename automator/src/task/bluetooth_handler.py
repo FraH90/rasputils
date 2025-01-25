@@ -27,22 +27,33 @@ class LinuxBluetoothHandler(BluetoothInterface):
         self.max_retries = 3
         self.retry_delay = 2  # seconds
 
-    def is_paired(self, device_mac):
-        print(f"Checking if {device_mac} is paired...")
+    def get_paired_devices(self):
+        """Retrieve all paired devices from bluetoothctl"""
+        paired_devices = {}
         try:
             bluetoothctl = self.pexpect.spawn('sudo bluetoothctl')
-            bluetoothctl.sendline(f'info {device_mac}')
-            try:
-                bluetoothctl.expect(['Paired: yes', 'Device has not been found'], timeout=10)
-                result = bluetoothctl.after.decode()
-                bluetoothctl.sendline('exit')
-                return 'Paired: yes' in result
-            except self.pexpect.TIMEOUT:
-                bluetoothctl.sendline('exit')
-                return False
+            bluetoothctl.sendline('paired-devices')
+            bluetoothctl.expect('# ', timeout=self.timeout)
+            
+            # Get the output and decode it
+            output = bluetoothctl.before.decode()
+            
+            # Parse the output to get device info
+            # Format is typically: "Device XX:XX:XX:XX:XX:XX DeviceName"
+            for line in output.split('\n'):
+                if line.strip().startswith('Device'):
+                    parts = line.strip().split(' ', 2)
+                    if len(parts) >= 2:
+                        mac = parts[1]
+                        name = parts[2] if len(parts) > 2 else "Unknown"
+                        paired_devices[mac] = name
+            
+            bluetoothctl.sendline('quit')
+            return paired_devices
+            
         except Exception as e:
-            logging.error(f"Error checking pairing status: {str(e)}")
-            return False
+            logging.error(f"Error getting paired devices: {str(e)}")
+            return {}
     
     def _get_connected_devices(self):
         """Get list of devices currently connected to the speaker"""
@@ -63,7 +74,42 @@ class LinuxBluetoothHandler(BluetoothInterface):
         except Exception as e:
             logging.error(f"Error getting connected devices: {str(e)}")
             return []
-
+    
+    def get_connectable_devices(self):
+        """Compare JSON devices with paired devices and return matches"""
+        paired_devices = self.get_paired_devices()
+        connectable_devices = []
+        
+        for device in self.devices:
+            if device['mac_address'] in paired_devices:
+                connectable_devices.append({
+                    'mac_address': device['mac_address'],
+                    'name': paired_devices[device['mac_address']],
+                    'type': device.get('type', 'unknown')
+                })
+                logging.info(f"Found paired device: {device['mac_address']} ({paired_devices[device['mac_address']]})")
+            else:
+                logging.info(f"Device {device['mac_address']} not paired, skipping")
+                
+        return connectable_devices
+    
+    def is_paired(self, device_mac):
+        print(f"Checking if {device_mac} is paired...")
+        try:
+            bluetoothctl = self.pexpect.spawn('sudo bluetoothctl')
+            bluetoothctl.sendline(f'info {device_mac}')
+            try:
+                bluetoothctl.expect(['Paired: yes', 'Device has not been found'], timeout=10)
+                result = bluetoothctl.after.decode()
+                bluetoothctl.sendline('exit')
+                return 'Paired: yes' in result
+            except self.pexpect.TIMEOUT:
+                bluetoothctl.sendline('exit')
+                return False
+        except Exception as e:
+            logging.error(f"Error checking pairing status: {str(e)}")
+            return False
+    
     def _force_disconnect_others(self):
         """Disconnect other devices from the speaker"""
         try:
@@ -90,37 +136,42 @@ class LinuxBluetoothHandler(BluetoothInterface):
             return False
 
     def connect(self):
-        """Connect to the speaker with retry mechanism and force disconnect"""
-        for attempt in range(self.max_retries):
-            try:
-                logging.info(f"Connection attempt {attempt + 1} of {self.max_retries}")
-                
-                # First, try to connect normally
-                if self._try_connect():
-                    logging.info("Connected successfully")
-                    return True
-                
-                # If failed, try forcing disconnection of other devices
-                logging.info("Connection failed, attempting to force disconnect other devices")
-                self._force_disconnect_others()
-                
-                # Wait a bit for disconnections to take effect
-                time.sleep(self.retry_delay)
-                
-                # Try connecting again
-                if self._try_connect():
-                    logging.info("Connected successfully after forcing disconnections")
-                    return True
-                
-                # If still failed, wait before next attempt
-                time.sleep(self.retry_delay)
-                
-            except Exception as e:
-                logging.error(f"Connection attempt {attempt + 1} failed: {str(e)}")
-                if attempt < self.max_retries - 1:  # Don't sleep on last attempt
-                    time.sleep(self.retry_delay)
+        """Try to connect to paired devices from the JSON list"""
+        connectable_devices = self.get_connectable_devices()
         
-        logging.error("All connection attempts failed")
+        if not connectable_devices:
+            logging.error("No paired devices found in the provided list")
+            return False
+            
+        for device in connectable_devices:
+            mac = device['mac_address']
+            name = device['name']
+            
+            # Check if already connected
+            if self.is_connected(mac):
+                logging.info(f"Device {name} ({mac}) is already connected")
+                return True
+                
+            # Try to connect
+            logging.info(f"Attempting to connect to {name} ({mac})")
+            try:
+                bluetoothctl = self.pexpect.spawn('sudo bluetoothctl')
+                bluetoothctl.sendline(f'connect {mac}')
+                
+                index = bluetoothctl.expect(['Connection successful', 'Failed to connect'], 
+                                         timeout=self.timeout)
+                
+                bluetoothctl.sendline('quit')
+                
+                if index == 0:
+                    logging.info(f"Successfully connected to {name} ({mac})")
+                    return True
+                else:
+                    logging.error(f"Failed to connect to {name} ({mac})")
+                    
+            except Exception as e:
+                logging.error(f"Error connecting to {name} ({mac}): {str(e)}")
+                
         return False
 
     def _try_connect(self):
@@ -155,19 +206,22 @@ class LinuxBluetoothHandler(BluetoothInterface):
             logging.error(f"Connection attempt failed: {str(e)}")
             return False
 
-    def is_connected(self):
+    def is_connected(self, mac_address):
+        """Check if specific device is connected"""
         try:
-            device_mac = self.devices[0]
             bluetoothctl = self.pexpect.spawn('sudo bluetoothctl')
-            bluetoothctl.sendline(f'info {device_mac}')
+            bluetoothctl.sendline(f'info {mac_address}')
+            
             try:
-                bluetoothctl.expect(['Connected: yes', 'Device has not been found'], timeout=10)
-                result = bluetoothctl.after.decode()
-                bluetoothctl.sendline('exit')
+                bluetoothctl.expect(['Connected: yes', 'Device has not been found'], 
+                                 timeout=10)
+                result = bluetoothctl.before.decode() + bluetoothctl.after.decode()
+                bluetoothctl.sendline('quit')
                 return 'Connected: yes' in result
             except self.pexpect.TIMEOUT:
-                bluetoothctl.sendline('exit')
+                bluetoothctl.sendline('quit')
                 return False
+                
         except Exception as e:
             logging.error(f"Error checking connection status: {str(e)}")
             return False
