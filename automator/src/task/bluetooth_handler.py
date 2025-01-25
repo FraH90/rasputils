@@ -67,13 +67,21 @@ class BluetoothHandler:
             return -1, ""
 
     def is_paired(self, mac_address):
-        """Check if device is listed in 'paired-devices'."""
-        index, output = self.run_command(
-            "paired-devices",
-            ["#"]  # We'll watch for the prompt
-        )
-        # If the MAC is in the output, consider it paired
-        return mac_address.upper() in output.upper()
+        """
+        Check if device is paired by parsing 'info <MAC>'.
+        We'll look for 'Paired: yes' in the output.
+        """
+        cmd = f"info {mac_address}"
+        index, output = self.run_command(cmd, ["Paired: yes", "Paired: no", "not available"])
+        # index = 0 -> matched "Paired: yes"
+        # index = 1 -> matched "Paired: no"
+        # index = 2 -> matched "not available"
+        # index = -1 -> we only matched the prompt (no direct pattern)
+        
+        # If we matched "Paired: yes", the device is paired.
+        if index == 0:
+            return True
+        return False
 
     def is_connected(self, mac_address):
         """Check if device is connected by parsing 'info'."""
