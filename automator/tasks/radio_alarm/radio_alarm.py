@@ -57,7 +57,7 @@ class RadioPlayer:
         self.is_playing = True  # Set the flag to True when starting to play
         try:
             # Increase VLC buffer and set audio output to ALSA
-            instance = vlc.Instance('--network-caching=3000', '--file-caching=3000', '--live-caching=3000', '--aout=alsa')
+            instance = vlc.Instance('--network-caching=3000', '--file-caching=3000', '--live-caching=3000', '--aout=pulse')
             player = instance.media_player_new()
             media = instance.media_new(stream_url)
             player.set_media(media)
