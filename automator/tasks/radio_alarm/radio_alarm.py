@@ -61,6 +61,7 @@ class RadioPlayer:
             player = instance.media_player_new()
             media = instance.media_new(stream_url)
             player.set_media(media)
+            player.audio_set_volume(50)
             player.play()
 
             print(f"{time.strftime('%H:%M')} - Playing radio {radio_name}")
