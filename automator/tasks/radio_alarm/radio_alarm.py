@@ -28,19 +28,26 @@ class RadioPlayer:
         return cls._instance
     
     def __init__(self):
-        if not hasattr(self, 'initialized'):
-            self.load_config()
-            self.load_radio_streams()
-            self.is_playing = False  # Add a flag to check if the radio is playing
-            self.initialized = True
+        self.load_config()
+        self.bluetooth_handler = None
+        self.logger = logging.getLogger(__name__)
+        self.is_playing = False  # Add a flag to check if the radio is playing
+        self.initialized = True
     
     def load_config(self):
-        with open(CONFIG_FILE, 'r') as f:
-            self.config = json.load(f)
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                self.config = json.load(f)
+            # Get the first bluetooth device's MAC address from config
+            self.bluetooth_mac = self.config['bluetooth_devices'][0]['mac_address']
+            self.radio_streams = self.load_radio_streams()
+        except Exception as e:
+            self.logger.error(f"Error loading configuration: {str(e)}")
+            raise
 
     def load_radio_streams(self):
         with open(RADIO_STREAM_FILE, 'r') as f:
-            self.radio_streams = json.load(f)
+            return json.load(f)
 
     def play_radio_for_one_hour(self, stream_url, radio_name):
         if self.is_playing:
@@ -69,21 +76,27 @@ class RadioPlayer:
             self.is_playing = False  # Reset the flag when done playing
 
     def start(self):
-        radio_stream = random.choice(self.radio_streams)
-        radio_stream_url = radio_stream['url']
-        radio_name = radio_stream['name']
-
-        # Connect to the Bluetooth speaker using the list of devices
-        bluetooth_devices = self.config['bluetooth_devices']
-        bluetooth_handler = BluetoothHandler(bluetooth_devices)
-        
-        # Try to connect (this will automatically use already connected devices if available)
-        if bluetooth_handler.connect():
-            connected_device = bluetooth_handler.get_current_device()
-            print(f"Using Bluetooth device: {connected_device['name']}")
-            self.play_radio_for_one_hour(radio_stream_url, radio_name)
-        else:
-            print("Failed to connect to any Bluetooth speaker. Exiting.")
+        """Initialize and start radio playback"""
+        try:
+            # Select random radio stream
+            radio_stream = random.choice(self.radio_streams)
+            radio_stream_url = radio_stream['url']
+            radio_name = radio_stream['name']
+            
+            # Initialize Bluetooth connection with single MAC address
+            bluetooth_handler = BluetoothHandler(self.bluetooth_mac)
+            
+            # Try to connect
+            if bluetooth_handler.connect():
+                self.logger.info(f"Connected to Bluetooth device: {self.bluetooth_mac}")
+                self.play_radio_for_one_hour(radio_stream_url, radio_name)
+            else:
+                self.logger.error("Failed to connect to Bluetooth speaker. Exiting.")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error in start(): {str(e)}")
+            return False
 
 
 def check_if_already_running():
