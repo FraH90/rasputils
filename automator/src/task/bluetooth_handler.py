@@ -20,12 +20,13 @@ class BluetoothInterface(ABC):
 
 class LinuxBluetoothHandler(BluetoothInterface):
     """Linux implementation using bluetoothctl with enhanced connection management"""
-    def __init__(self, devices):
+    def __init__(self, devices, timeout=10):
         self.devices = devices
         import pexpect
         self.pexpect = pexpect
         self.max_retries = 3
         self.retry_delay = 2  # seconds
+        self.timeout = timeout  # Allow customizable timeout
 
     def get_paired_devices(self):
         """Retrieve all paired devices from bluetoothctl"""
