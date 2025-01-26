@@ -1,13 +1,14 @@
 import platform
 import logging
 import time
+import subprocess
+import re
 
 # We'll use an abstract base class to illustrate the design, but it's optional.
 from abc import ABC, abstractmethod
 
 ###########################################################
-# 1) The original Linux code, renamed to LinuxBluetoothHandler
-#    (kept exactly as you provided, except for the class name)
+# 1) The original Linux code, now enhanced for PipeWire
 ###########################################################
 try:
     import pexpect
@@ -18,8 +19,7 @@ except ImportError:
 class LinuxBluetoothHandler(ABC):
     """
     Linux implementation using a single bluetoothctl session.
-    EXACT copy of your original code, except renamed to LinuxBluetoothHandler
-    so we can wrap it in a cross-platform factory later.
+    Enhanced to switch to A2DP profile via PipeWire after connect.
     """
 
     def __init__(self, devices):
@@ -103,7 +103,7 @@ class LinuxBluetoothHandler(ABC):
         return (index == 0)  # "Connected: yes"
 
     def connect(self):
-        """Try to connect to any of the configured devices."""
+        """Try to connect to any of the configured devices, then set A2DP profile."""
         for device in self.devices:
             # Handle both dictionary and string inputs
             if isinstance(device, dict):
@@ -118,6 +118,8 @@ class LinuxBluetoothHandler(ABC):
             # Check if already connected
             if self.is_connected(mac):
                 self.logger.info(f"Device {name} ({mac}) is already connected")
+                # Attempt to set A2DP anyway
+                self._set_a2dp_profile(mac)
                 return True
 
             # Try to connect with retries
@@ -160,6 +162,8 @@ class LinuxBluetoothHandler(ABC):
                     # index = 2 means "Device is already connected"
                     if index in [0, 2]:
                         self.logger.info(f"Successfully connected to {name} ({mac})")
+                        # Attempt to set A2DP
+                        self._set_a2dp_profile(mac)
                         return True
                     else:
                         self.logger.warning(f"Connect attempt failed: {output.strip()}")
@@ -175,6 +179,46 @@ class LinuxBluetoothHandler(ABC):
 
         self.logger.error("Failed to connect to any configured Bluetooth devices")
         return False
+
+    def _set_a2dp_profile(self, mac):
+        """
+        Attempt to set the PipeWire (or PulseAudio-compat) profile to a2dp-sink
+        for the connected device. We find the matching 'bluez_card.<MAC>' by
+        enumerating 'pactl list cards short', then set-card-profile to a2dp-sink.
+        """
+        self.logger.info(f"Setting A2DP profile for {mac} via PipeWire/PulseAudio if available...")
+        short_mac = mac.replace(":", "_").upper()
+
+        # List all cards via pactl
+        try:
+            cmd = ["pactl", "list", "cards", "short"]
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            lines = result.stdout.strip().split("\n")
+        except Exception as e:
+            self.logger.warning(f"Could not list PulseAudio/PipeWire cards: {e}")
+            return
+
+        card_name = None
+        for line in lines:
+            if "bluez_card." in line:
+                parts = line.split("\t")
+                if len(parts) >= 2:
+                    candidate = parts[1]  # e.g. "bluez_card.BC_7F_7B_76_E1_15"
+                    if short_mac in candidate.upper():
+                        card_name = candidate
+                        break
+
+        if not card_name:
+            self.logger.warning(f"No matching bluez_card found for {mac} in PipeWire/PulseAudio.")
+            return
+
+        # Now set the card profile to a2dp-sink
+        try:
+            profile_cmd = ["pactl", "set-card-profile", card_name, "a2dp-sink"]
+            subprocess.run(profile_cmd, check=True)
+            self.logger.info(f"Set card {card_name} to a2dp-sink successfully.")
+        except Exception as e:
+            self.logger.warning(f"Failed to set a2dp-sink on card {card_name}: {e}")
 
     def disconnect(self):
         """Disconnect from any connected device."""
@@ -276,8 +320,6 @@ class WindowsBluetoothHandler(ABC):
         For simplicity: We'll do a device discovery and see if
         our target device is in range. If found, we consider it "connected."
         """
-        # In reality, Windows might need further pairing steps.
-        # We'll keep it minimal for demonstration.
         for device in self.devices:
             mac = device["mac_address"].upper() if isinstance(device, dict) else device.upper()
             name = device.get("name", "Unknown Device") if isinstance(device, dict) else "Unknown Device"
@@ -325,7 +367,7 @@ class WindowsBluetoothHandler(ABC):
 class BluetoothHandler:
     """
     A factory class that returns the appropriate handler for the current platform.
-    On Linux, uses LinuxBluetoothHandler (bluetoothctl + pexpect).
+    On Linux, uses LinuxBluetoothHandler (bluetoothctl + pexpect, plus PipeWire A2DP).
     On Windows, uses WindowsBluetoothHandler (PyQt5 for discovery).
     """
 
@@ -336,10 +378,8 @@ class BluetoothHandler:
     def _create_impl(self):
         system = platform.system().lower()
         if system == 'linux':
-            # Use the LinuxBluetoothHandler (original code).
             return LinuxBluetoothHandler(self.devices)
         elif system == 'windows':
-            # Use the WindowsBluetoothHandler (Qt-based).
             return WindowsBluetoothHandler(self.devices)
         else:
             raise NotImplementedError(f"BluetoothHandler not implemented for OS: {system}")
@@ -351,10 +391,7 @@ class BluetoothHandler:
         return self._impl.disconnect()
 
     def is_connected(self):
-        # If we need to pass a MAC address on Linux,
-        # you can adapt it. But the original code tries all devices.
         return self._impl.is_connected()
 
     def cleanup(self):
-        # We added a cleanup method on both. 
         return self._impl.cleanup()
