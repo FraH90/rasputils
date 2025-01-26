@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 
 ###########################################################
 # 1) The original Linux code, now enhanced for PipeWire
+#    plus get_connected_devices() logic to skip re-connecting
 ###########################################################
 try:
     import pexpect
@@ -19,7 +20,8 @@ except ImportError:
 class LinuxBluetoothHandler(ABC):
     """
     Linux implementation using a single bluetoothctl session.
-    Enhanced to switch to A2DP profile via PipeWire after connect.
+    Enhanced to switch to A2DP profile via PipeWire after connect,
+    and skip re-connecting if the device is already connected.
     """
 
     def __init__(self, devices):
@@ -67,18 +69,33 @@ class LinuxBluetoothHandler(ABC):
         try:
             while True:
                 i = self.btctl.expect(combined_patterns, timeout=timeout)
-                # If i corresponds to one of our custom patterns (not the last prompt),
-                # return immediately.
                 if i < len(expect_patterns):
                     output = self.btctl.before.decode(errors="replace")
                     return i, output
                 else:
-                    # We matched the prompt but none of the custom patterns
                     output = self.btctl.before.decode(errors="replace")
                     return -1, output
         except pexpect.TIMEOUT:
             self.logger.error(f"Command timed out: {command}")
             return -1, ""
+
+    def get_connected_devices(self):
+        """
+        Return a set of MAC addresses (uppercase) for devices
+        that are currently connected, according to
+        'bluetoothctl devices Connected'.
+        """
+        idx, output = self.run_command("devices Connected", ["#"])
+        connected_macs = set()
+        for line in output.splitlines():
+            line = line.strip()
+            # Typically lines look like: "Device BC:7F:7B:76:E1:15 DeviceName"
+            if line.startswith("Device "):
+                parts = line.split()
+                if len(parts) >= 2:
+                    mac = parts[1].upper()
+                    connected_macs.add(mac)
+        return connected_macs
 
     def is_paired(self, mac_address):
         """
@@ -87,25 +104,26 @@ class LinuxBluetoothHandler(ABC):
         """
         cmd = f"info {mac_address}"
         index, output = self.run_command(cmd, ["Paired: yes", "Paired: no", "not available"])
-        # index = 0 -> matched "Paired: yes"
-        # index = 1 -> matched "Paired: no"
-        # index = 2 -> matched "not available"
-        # index = -1 -> we only matched the prompt (no direct pattern)
-
         return (index == 0)
 
     def is_connected(self, mac_address):
-        """Check if device is connected by parsing 'info'."""
+        """Check if device is connected by parsing 'info' for 'Connected: yes'."""
         index, output = self.run_command(
             f"info {mac_address}",
             ["Connected: yes", "Connected: no", "not available"]
         )
-        return (index == 0)  # "Connected: yes"
+        return (index == 0)
 
     def connect(self):
-        """Try to connect to any of the configured devices, then set A2DP profile."""
+        """
+        Try to connect to any of the configured devices. If a device is
+        already connected (based on 'devices Connected'), we skip re-connecting
+        and just set the A2DP profile if needed.
+        """
+        # Check system-wide connected devices first
+        already_connected = self.get_connected_devices()
+
         for device in self.devices:
-            # Handle both dictionary and string inputs
             if isinstance(device, dict):
                 mac = device["mac_address"].upper()
                 name = device.get("name", "Unknown Device")
@@ -113,60 +131,57 @@ class LinuxBluetoothHandler(ABC):
                 mac = device.upper()
                 name = "Unknown Device"
 
-            self.logger.info(f"Attempting to connect to {name} ({mac})")
-
-            # Check if already connected
-            if self.is_connected(mac):
-                self.logger.info(f"Device {name} ({mac}) is already connected")
+            # Skip if it's already in the connected list
+            if mac in already_connected:
+                self.logger.info(f"Device {name} ({mac}) is already connected (system list).")
                 # Attempt to set A2DP anyway
                 self._set_a2dp_profile(mac)
                 return True
 
-            # Try to connect with retries
+            # Also do a direct check with 'info' if desired
+            if self.is_connected(mac):
+                self.logger.info(f"Device {name} ({mac}) is already connected (is_connected).")
+                self._set_a2dp_profile(mac)
+                return True
+
+            self.logger.info(f"Attempting to connect to {name} ({mac})")
+
             for attempt in range(self.max_retries):
                 try:
                     # If not paired, try pairing first
                     if not self.is_paired(mac):
                         self.logger.info(f"Device {mac} not paired; attempting to pair...")
-                        index, output = self.run_command(
+                        idx, out = self.run_command(
                             f"pair {mac}",
                             ["Pairing successful", "Failed to pair", "Already paired"],
                             timeout=30
                         )
-                        if index not in [0, 2]:  # Not successful or not "Already paired"
-                            self.logger.warning(f"Pair failed: {output.strip()}")
+                        if idx not in [0, 2]:
+                            self.logger.warning(f"Pair failed: {out.strip()}")
                             continue
 
                         # Trust the device
-                        index, output = self.run_command(
+                        idx, out = self.run_command(
                             f"trust {mac}",
                             ["trust succeeded", "trust failed"]
                         )
-                        if index != 0:
-                            self.logger.warning(f"Trust failed: {output.strip()}")
+                        if idx != 0:
+                            self.logger.warning(f"Trust failed: {out.strip()}")
                             continue
 
                     # Now attempt to connect
                     self.logger.info(f"Attempting connection to {mac} (attempt {attempt+1})...")
-                    index, output = self.run_command(
+                    idx, out = self.run_command(
                         f"connect {mac}",
-                        [
-                            "Connection successful",
-                            "Failed to connect",
-                            "Device is already connected"
-                        ],
+                        ["Connection successful", "Failed to connect", "Device is already connected"],
                         timeout=15
                     )
-
-                    # index = 0 means "Connection successful"
-                    # index = 2 means "Device is already connected"
-                    if index in [0, 2]:
+                    if idx in [0, 2]:
                         self.logger.info(f"Successfully connected to {name} ({mac})")
-                        # Attempt to set A2DP
                         self._set_a2dp_profile(mac)
                         return True
                     else:
-                        self.logger.warning(f"Connect attempt failed: {output.strip()}")
+                        self.logger.warning(f"Connect attempt failed: {out.strip()}")
 
                 except Exception as e:
                     self.logger.error(f"Attempt {attempt + 1} error: {str(e)}")
@@ -248,7 +263,7 @@ class LinuxBluetoothHandler(ABC):
             self.btctl.close(force=True)
 
 ###########################################################
-# 2) A simplified Windows handler using PyQt5
+# 2) A simplified Windows handler using PyQt5 (unchanged)
 ###########################################################
 try:
     from PyQt5.QtBluetooth import QBluetoothDeviceDiscoveryAgent, QBluetoothDeviceInfo
@@ -362,7 +377,7 @@ class WindowsBluetoothHandler(ABC):
         pass
 
 ###########################################################
-# 3) The cross-platform "factory" class
+# 3) The cross-platform "factory" class (unchanged)
 ###########################################################
 class BluetoothHandler:
     """
