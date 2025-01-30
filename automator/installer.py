@@ -1,20 +1,17 @@
 import os
 import sys
 
-def add_to_bashrc(shell_script_path, output_path):
-    bashrc_path = os.path.expanduser("~/.bashrc")
-    script_dir = os.path.dirname(shell_script_path)
-    entry = f"""
-# Run shell script at startup
-cd {script_dir} && (nohup {shell_script_path} > {output_path} 2>&1 &)
 """
-    
-    with open(bashrc_path, "a") as bashrc:
-        bashrc.write(entry)
+This script let the user choose to install at startup a selected shell script, to the bashrc file
+Before running this, be sure to put the entire folder that contain the program you want to run at startup
+in the "final" location where you'll leave it after running this.
+"""
 
+# Find all the sh files in the current directory, from where you launched the installer.sh script
 def find_sh_files():
     return [f for f in os.listdir() if f.endswith('.sh')]
 
+# Prompt the user to select the shell script that needs to be installed
 def prompt_for_script_choice(scripts):
     print("Multiple .sh files found:")
     for idx, script in enumerate(scripts, start=1):
@@ -31,6 +28,17 @@ def prompt_for_script_choice(scripts):
     except ValueError:
         print("Invalid input. Please enter a number.")
         sys.exit(1)
+
+# Add to .bashrc the shell script selected from the previous function
+def add_to_bashrc(shell_script_path, output_path):
+    bashrc_path = os.path.expanduser("~/.bashrc")
+    script_dir = os.path.dirname(shell_script_path)
+    entry = f"""
+# Run shell script at startup
+nohup {shell_script_path} > {output_path} 2>&1 &
+"""
+    with open(bashrc_path, "a") as bashrc:
+        bashrc.write(entry)
 
 def main():
     sh_files = find_sh_files()
