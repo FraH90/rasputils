@@ -16,7 +16,7 @@ from task.bluetooth_handler import BluetoothHandler
 
 CURRENT_TASK_DIR = os.path.dirname(__file__)
 CONFIG_FILE = os.path.join(CURRENT_TASK_DIR, 'config.json')
-SOURCES_FILE = os.path.join(CURRENT_TASK_DIR, 'sleep_sources.json')
+SOURCES_FILE = os.path.join(CURRENT_TASK_DIR, 'sleep_sounds_sources.json')
 PID_FILE = os.path.join(CURRENT_TASK_DIR, 'sleep_sounds.pid')
 CACHE_DIR = os.path.join(CURRENT_TASK_DIR, 'cache')
 
