@@ -1,17 +1,16 @@
 import os
 import sys
+import subprocess
+import getpass
 
 """
-This script let the user choose to install at startup a selected shell script, to the bashrc file
-Before running this, be sure to put the entire folder that contain the program you want to run at startup
-in the "final" location where you'll leave it after running this.
+This script creates a systemd user service to run the selected shell script at startup.
+The service will automatically restart if it crashes.
 """
 
-# Find all the sh files in the current directory, from where you launched the installer.sh script
 def find_sh_files():
     return [f for f in os.listdir() if f.endswith('.sh')]
 
-# Prompt the user to select the shell script that needs to be installed
 def prompt_for_script_choice(scripts):
     print("Multiple .sh files found:")
     for idx, script in enumerate(scripts, start=1):
@@ -29,16 +28,58 @@ def prompt_for_script_choice(scripts):
         print("Invalid input. Please enter a number.")
         sys.exit(1)
 
-# Add to .bashrc the shell script selected from the previous function
-def add_to_bashrc(shell_script_path, output_path):
-    bashrc_path = os.path.expanduser("~/.bashrc")
-    script_dir = os.path.dirname(shell_script_path)
-    entry = f"""
-# Run shell script at startup
-nohup {shell_script_path} > {output_path} 2>&1 &
+def create_systemd_service(shell_script_path, output_path):
+    # Create systemd user directory if it doesn't exist
+    systemd_dir = os.path.expanduser("~/.config/systemd/user")
+    os.makedirs(systemd_dir, exist_ok=True)
+
+    # Get the working directory of the script
+    working_dir = os.path.dirname(os.path.abspath(shell_script_path))
+    
+    # Create service file content
+    service_content = f"""[Unit]
+Description=Automator Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash {shell_script_path}
+WorkingDirectory={working_dir}
+Restart=always
+RestartSec=10
+StandardOutput=append:{output_path}
+StandardError=append:{output_path}
+
+[Install]
+WantedBy=default.target
 """
-    with open(bashrc_path, "a") as bashrc:
-        bashrc.write(entry)
+    
+    # Write service file
+    service_name = "automator.service"
+    service_path = os.path.join(systemd_dir, service_name)
+    with open(service_path, "w") as f:
+        f.write(service_content)
+    
+    return service_name
+
+def enable_and_start_service(service_name):
+    try:
+        # Reload systemd daemon
+        subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
+        
+        # Enable the service
+        subprocess.run(["systemctl", "--user", "enable", service_name], check=True)
+        
+        # Start the service
+        subprocess.run(["systemctl", "--user", "start", service_name], check=True)
+        
+        # Enable lingering for the current user (allows user services to run at boot)
+        username = getpass.getuser()
+        subprocess.run(["sudo", "loginctl", "enable-linger", username], check=True)
+        
+    except subprocess.CalledProcessError as e:
+        print(f"Error setting up service: {e}")
+        sys.exit(1)
 
 def main():
     sh_files = find_sh_files()
@@ -83,9 +124,20 @@ def main():
     
     output_path = os.path.join(logs_dir, "output.out")
 
-    add_to_bashrc(absolute_path, output_path)
-    print(f"Installation complete. The script {absolute_path} will run at startup.")
-    print(f"Output will be written to {output_path}")
+    # Create and enable systemd service
+    service_name = create_systemd_service(absolute_path, output_path)
+    enable_and_start_service(service_name)
+    
+    print(f"Installation complete. The service has been created and enabled.")
+    print(f"Service name: {service_name}")
+    print(f"Script path: {absolute_path}")
+    print(f"Output will be written to: {output_path}")
+    print("\nUseful commands:")
+    print(f"- Check service status: systemctl --user status {service_name}")
+    print(f"- View logs: journalctl --user -u {service_name}")
+    print(f"- Stop service: systemctl --user stop {service_name}")
+    print(f"- Start service: systemctl --user start {service_name}")
+    print(f"- Restart service: systemctl --user restart {service_name}")
 
 if __name__ == "__main__":
     main()
