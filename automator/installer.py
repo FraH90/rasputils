@@ -36,6 +36,9 @@ def create_systemd_service(shell_script_path, output_path):
     # Get the working directory of the script
     working_dir = os.path.dirname(os.path.abspath(shell_script_path))
     
+    # Get current user's PATH
+    current_path = os.environ.get('PATH', '')
+    
     # Create service file content
     service_content = f"""[Unit]
 Description=Automator Service
@@ -43,6 +46,7 @@ After=network.target
 
 [Service]
 Type=simple
+Environment="PATH={current_path}"
 ExecStart=/bin/bash {shell_script_path}
 WorkingDirectory={working_dir}
 Restart=always

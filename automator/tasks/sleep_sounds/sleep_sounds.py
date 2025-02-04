@@ -173,7 +173,21 @@ class SleepSoundsPlayer:
 
         # Get metadata first (JSON) to find "id" and "title"
         try:
-            cmd = ['yt-dlp', '-J', youtube_url]  # -J => dump JSON metadata
+            # Try to find yt-dlp full path
+            try:
+                yt_dlp_path = subprocess.check_output(['which', 'yt-dlp'], text=True).strip()
+                self.logger.info(f"Found yt-dlp at: {yt_dlp_path}")
+            except subprocess.CalledProcessError:
+                # Try common locations
+                common_paths = [
+                    '/usr/local/bin/yt-dlp',
+                    '/usr/bin/yt-dlp',
+                    '/opt/homebrew/bin/yt-dlp'
+                ]
+                yt_dlp_path = next((p for p in common_paths if os.path.exists(p)), 'yt-dlp')
+                self.logger.info(f"Using yt-dlp from path: {yt_dlp_path}")
+            
+            cmd = [yt_dlp_path, '-J', youtube_url]  # -J => dump JSON metadata
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             info = json.loads(result.stdout)
 
@@ -199,8 +213,9 @@ class SleepSoundsPlayer:
         # Otherwise, download
         self.logger.info(f"Downloading audio to {audio_path}")
         try:
+            # Use the same yt-dlp path found above
             dl_cmd = [
-                'yt-dlp',
+                yt_dlp_path,
                 '-q',                  # quiet
                 '-x',                  # extract audio
                 '--audio-format', 'm4a',
