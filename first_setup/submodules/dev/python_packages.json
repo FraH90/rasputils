@@ -1,4 +1,5 @@
 {
+    "vlc": "Python bindings for the VLC media player library.",
     "google-api-python-client": "Python client library for Google APIs.",
     "huggingface-hub": "Client library to interact with the Hugging Face Hub.",
     "openai": "Python client library for OpenAI's API.",
